@@ -18,6 +18,7 @@ const initiate = () => {
                 "add a role",
                 "add an employee",
                 "update an employee role",
+                "exit",
             ],
         },
     ])
@@ -43,6 +44,8 @@ const initiate = () => {
             addEmployee();
         } else if (choice === "update an employee role") {
             updateEmployee();
+        } else if (choice === "exit") {
+            process.exit();
         }
     });
 }
@@ -114,20 +117,25 @@ function addDepartment() {
 function getDepartment() {
     return db
     .promise()
-    .query(`SELECT departments.id FROM departments;`)
+    .query(`SELECT * FROM departments;`)
 }
+
 // WHEN I choose to add a role
 // THEN I am prompted to enter the name, salary, and department for the role and that role is added to the database
 async function addRole() {
-    let selections = {}
+    
+    let choices = {}
     // get the avaiable department ids
     let departments = await getDepartment().then(([rows]) => {
+        console.log(rows);
         let departments = rows;
         let departmentChoices = departments.map(department => ({
             name: department.department,
             value: department.id
         }));
-        selections.departmentChoices = departmentChoices
+        console.log(departments);
+        choices.departmentChoices = departmentChoices
+        console.log(choices.departmentChoices)
     })
 
     // prompt user for role name, salary, and department
@@ -143,27 +151,31 @@ async function addRole() {
             message: "What is the salary for this new role?"
         },
         {
-            type: "input",
+            type: "list",
             name: "department",
-            message: "To which department does this role belong?"
+            message: "To which department does this role belong?",
+            choices: choices.departmentChoices
         }
     ]).then(answers => {
         // we know everything--package it and do an insert query
         let dataToAdd = {
             title: answers.newRole,
             salary: answers.salary,
-            department: answers.department_id,
-        }; db
+            department_id: answers.department,
+        }; 
+        console.log(dataToAdd);
+        
+        db
         .promise()
         .query(
-            "INSERT INTO departments SET ?",
+            "INSERT INTO roles SET ?",
             dataToAdd,
             (err, result) => {
                 if (err) throw err;
                 return dataToAdd;
             }
         );
-    }).then(()=> initiate())
+    }).then(() => initiate())
 }
 
 
