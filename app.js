@@ -32,13 +32,13 @@ const initiate = () => {
         } else if (choice === "view all roles") {
             console.log("you selected view all roles.");
             viewRoles();
-            // } else if (choice === "view all employees"){
-                //     console.log("you selected view all employees.");
-                //     viewEmployees();
+        } else if (choice === "view all employees"){
+            console.log("you selected view all employees.");
+            viewEmployees();
         } else if (choice === "add a department") {
             addDepartment();
-            // }else if (choice === "add a role") {
-                //     addRole();
+        }else if (choice === "add a role") {
+            addRole();
         } else if (choice === "add an employee") {
             addEmployee();
         } else if (choice === "update an employee role") {
@@ -71,13 +71,19 @@ function viewRoles() {
         console.table(roles);
     })
     .then(() => initiate());
-}    
+}
+
 // WHEN I choose to view all employees
 // THEN I am presented with a formatted table showing employee data, including employee ids, first names, last names, job titles, departments, salaries, and managers that the employees report to
-
-// function viewEmployees()
-
-
+function viewEmployees() {
+    db.promise()
+    .query(`SELECT * FROM employees;`)
+    .then(([rows]) => {
+        let employees = rows;
+        console.table(employees);
+    })
+    .then(() => initiate());
+}
         
 // WHEN I choose to add a department
 // THEN I am prompted to enter the name of the department and that department is added to the database
@@ -87,7 +93,7 @@ function addDepartment() {
         {
             type: "input",
             name: "newDepartment",
-            message: "What department would you like to add?",
+            message: "What department would you like to add?"
         },
     ])
     .then((response) => {
@@ -105,14 +111,70 @@ function addDepartment() {
     // query db with the insert
 }
 
+function getDepartment() {
+    return db
+    .promise()
+    .query(`SELECT departments.id FROM departments;`)
+}
 // WHEN I choose to add a role
 // THEN I am prompted to enter the name, salary, and department for the role and that role is added to the database
+async function addRole() {
+    let selections = {}
+    // get the avaiable department ids
+    let departments = await getDepartment().then(([rows]) => {
+        let departments = rows;
+        let departmentChoices = departments.map(department => ({
+            name: department.department,
+            value: department.id
+        }));
+        selections.departmentChoices = departmentChoices
+    })
+
+    // prompt user for role name, salary, and department
+    inquirer.prompt([
+        {
+            type: "input",
+            name: "newRole",
+            message: "What role would you like to add?"
+        },
+        {
+            type: "input",
+            name: "salary",
+            message: "What is the salary for this new role?"
+        },
+        {
+            type: "input",
+            name: "department",
+            message: "To which department does this role belong?"
+        }
+    ]).then(answers => {
+        // we know everything--package it and do an insert query
+        let dataToAdd = {
+            title: answers.newRole,
+            salary: answers.salary,
+            department: answers.department_id,
+        }; db
+        .promise()
+        .query(
+            "INSERT INTO departments SET ?",
+            dataToAdd,
+            (err, result) => {
+                if (err) throw err;
+                return dataToAdd;
+            }
+        );
+    }).then(()=> initiate())
+}
+
+
 function getRoles() {
-    return db.promise().query("SELECT roles.id FROM roles;")
+    return db
+    .promise()
+    .query("SELECT roles.id FROM roles;")
 }
 
 function getManagers() {
-    return  db
+    return db
     .promise()
     .query(`SELECT employees.id FROM employees;`)
 }
@@ -122,20 +184,19 @@ function getManagers() {
 async function addEmployee() {
     let choices = {}
     // get the avaiable role ids
-    //   let [roles] = await getRoles();
-    let roles =await getRoles().then(([rows]) => {
+    let roles = await getRoles().then(([rows]) => {
         let roles = rows;
-        let roleChoices = roles.map(role=>({
-            name: role.id,
+        let roleChoices = roles.map(role => ({
+            name: role.title,
             value: role.id
         }));
         choices.roleChoices = roleChoices
     })
 
-    let managers =await getManagers().then(([rows]) => {
+    let managers = await getManagers().then(([rows]) => {
         let managers = rows;
-        let managerChoices = managers.map(manager=>({
-            name: manager.id,
+        let managerChoices = managers.map(manager => ({
+            name: manager.last_name,
             value: manager.id
         }));
         choices.managerChoices = managerChoices
@@ -145,23 +206,23 @@ async function addEmployee() {
         {
             type: "input",
             name: "firstName",
-            message: "first name?",
+            message: "What's the employee's first name?",
         },
         {
             type: "input",
             name: "lastName",
-            message: "last name?",
+            message: "What's the employee's last name?",
         },
         {
             type: "list",
             name: "roleID",
-            message: "which role id is it?",
+            message: "which role does the employee have?",
             choices: choices.roleChoices,
         },
         {
             type: "list",
             name: "managerID",
-            message: "Whos their manager?",
+            message: "Who is the employee's manager?",
             choices: choices.managerChoices,
         },
     ]).then(answers => {
@@ -171,8 +232,9 @@ async function addEmployee() {
             last_name: answers.lastName,
             role_id: answers.roleID,
             manager_id: answers.managerID
-        };
-        db.promise().query(
+        }; db
+        .promise()
+        .query(
             "INSERT INTO employees SET ?",
             dataToInsert,
             (err, result) => {
