@@ -49,8 +49,27 @@ const initiate = () => {
         }
     });
 }
-            
+
 initiate();
+
+// functions for async functions to preform
+function getRoles() {
+    return db
+    .promise()
+    .query("SELECT * FROM roles;")
+}
+
+function getManagers() {
+    return db
+    .promise()
+    .query(`SELECT * FROM employees;`)
+}
+
+function getEmployees() {
+    return db
+    .promise()
+    .query(`SELECT * FROM employees;`)
+}
 
 // WHEN I choose to view all departments
 // THEN I am presented with a formatted table showing department names and department ids
@@ -108,18 +127,18 @@ function addDepartment() {
                 if (err) throw err;
                 return newDepartment;
             }
-        );
-    })
-    .then(() => initiate());
-    // query db with the insert
-}
-
-function getDepartment() {
-    return db
-    .promise()
-    .query(`SELECT * FROM departments;`)
-}
-
+            );
+        })
+        .then(() => initiate());
+        // query db with the insert
+    }
+    
+    function getDepartment() {
+        return db
+        .promise()
+        .query(`SELECT * FROM departments;`)
+    }
+    
 // WHEN I choose to add a role
 // THEN I am prompted to enter the name, salary, and department for the role and that role is added to the database
 async function addRole() {
@@ -179,18 +198,6 @@ async function addRole() {
 }
 
 
-function getRoles() {
-    return db
-    .promise()
-    .query("SELECT roles.id FROM roles;")
-}
-
-function getManagers() {
-    return db
-    .promise()
-    .query(`SELECT employees.id FROM employees;`)
-}
-
 // WHEN I choose to add an employee
 // THEN I am prompted to enter the employee’s first name, last name, role, and manager and that employee is added to the database
 async function addEmployee() {
@@ -208,7 +215,7 @@ async function addEmployee() {
     let managers = await getManagers().then(([rows]) => {
         let managers = rows;
         let managerChoices = managers.map(manager => ({
-            name: manager.last_name,
+            name: manager.last_name + `, ` + manager.first_name,
             value: manager.id
         }));
         choices.managerChoices = managerChoices
@@ -257,5 +264,55 @@ async function addEmployee() {
     }).then(()=> initiate())
 }
 
+
 // WHEN I choose to update an employee role
 // THEN I am prompted to select an employee to update and their new role and this information is updated in the database
+async function updateEmployee() {
+    let choices = {}
+    let roles = await getRoles().then(([rows]) => {
+        let roles = rows;
+        let roleChoices = roles.map(role => ({
+            name: role.title,
+            value: role.id
+        }));
+        choices.roleChoices = roleChoices
+    })
+    let employees = await getEmployees().then(([rows]) => {
+        let employees = rows;
+        let employeeChoices = employees.map(employee => ({
+            name: employee.last_name + `, ` + employee.first_name,
+            value: employee.id
+        }));
+        choices.employeeChoices = employeeChoices
+    })
+    
+    inquirer.prompt([
+        {
+            type: "list",
+            name: "employeeID",
+            message: "For which employee would you like to update the role?",
+            choices: choices.employeeChoices,
+        },
+        {
+            type: "list",
+            name: "roleID",
+            message: "which role does the employee have?",
+            choices: choices.roleChoices,
+        },
+    ]).then(answers => {
+        // we know everything--package it and do an insert query
+        let dataToInsert = {
+            role_id: answers.roleID,
+            id: answers.employeeID,
+        }; db
+        .promise()
+        .query(
+            "UPDATE employees SET ?",
+            dataToInsert,
+            (err, result) => {
+                if (err) throw err;
+                return dataToInsert;
+            }
+        );
+    }).then(()=> initiate())
+}
