@@ -2,6 +2,18 @@
 const inquirer = require("inquirer");
 const db = require("./db/connection"); 
 
+// Introduction
+const start = () => {
+    console.log(` --------------------------------------------`)
+    console.log(`|                                            |`)
+    console.log(`|              Welcome to the                |`)
+    console.log(`|             Employee Tracker               |`)
+    console.log(`|                                            |`)
+    console.log(` --------------------------------------------`)
+};
+start();
+
+
 // ask user what they want to do 
 const initiate = () => {
     inquirer.prompt([
@@ -26,7 +38,7 @@ const initiate = () => {
     .then((response) => {
         let choice = response.initiate;
         console.log(choice);
-        
+
         if (choice === "view all departments") {
             console.log("you selected view all departments.");
             viewDepartments();
@@ -69,6 +81,12 @@ function getEmployees() {
     return db
     .promise()
     .query(`SELECT * FROM employees;`)
+}
+
+function getDepartment() {
+    return db
+    .promise()
+    .query(`SELECT * FROM departments;`)
 }
 
 // WHEN I choose to view all departments
@@ -127,17 +145,11 @@ function addDepartment() {
                 if (err) throw err;
                 return newDepartment;
             }
-            );
-        })
-        .then(() => initiate());
-        // query db with the insert
-    }
-    
-    function getDepartment() {
-        return db
-        .promise()
-        .query(`SELECT * FROM departments;`)
-    }
+        );
+    })
+    .then(() => initiate());
+}
+
     
 // WHEN I choose to add a role
 // THEN I am prompted to enter the name, salary, and department for the role and that role is added to the database
@@ -146,15 +158,12 @@ async function addRole() {
     let choices = {}
     // get the avaiable department ids
     let departments = await getDepartment().then(([rows]) => {
-        console.log(rows);
         let departments = rows;
         let departmentChoices = departments.map(department => ({
             name: department.department,
             value: department.id
         }));
-        console.log(departments);
         choices.departmentChoices = departmentChoices
-        console.log(choices.departmentChoices)
     })
 
     // prompt user for role name, salary, and department
@@ -182,8 +191,7 @@ async function addRole() {
             salary: answers.salary,
             department_id: answers.department,
         }; 
-        console.log(dataToAdd);
-        
+
         db
         .promise()
         .query(
@@ -285,7 +293,6 @@ async function updateEmployee() {
         }));
         choices.employeeChoices = employeeChoices
     })
-    
     inquirer.prompt([
         {
             type: "list",
@@ -300,18 +307,14 @@ async function updateEmployee() {
             choices: choices.roleChoices,
         },
     ]).then(answers => {
-        // we know everything--package it and do an insert query
-        let dataToInsert = {
-            role_id: answers.roleID,
-            id: answers.employeeID,
-        }; db
+        db
         .promise()
         .query(
-            "UPDATE employees SET ?",
-            dataToInsert,
+            `UPDATE employees SET role_id = ? WHERE id = ?`,
+            [answers.roleID, answers.employeeID],
             (err, result) => {
                 if (err) throw err;
-                return dataToInsert;
+                return [answers.employeeID, answers.roleID];
             }
         );
     }).then(()=> initiate())
